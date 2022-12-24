@@ -655,6 +655,9 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 		if (ret)
 			continue;
 
+		if (conn->modes[i].vdisplay > 720)
+			continue;
+
 		uterm_drm_mode_set(mode, &conn->modes[i]);
 
 		ret = uterm_mode_bind(mode, disp);
