@@ -45,6 +45,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#ifndef SIGUNUSED
+#define SIGUNUSED SIGSYS
+#endif
+
 struct kmscon_pty;
 
 typedef void (*kmscon_pty_input_cb)
