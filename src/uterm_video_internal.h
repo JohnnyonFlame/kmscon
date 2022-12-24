@@ -150,6 +150,7 @@ static inline bool display_is_online(const struct uterm_display *disp)
 
 #define VIDEO_AWAKE		0x01
 #define VIDEO_HOTPLUG		0x02
+#define VIDEO_NOT_SHOWN		0x04
 
 struct uterm_video {
 	unsigned long ref;
@@ -166,7 +167,7 @@ struct uterm_video {
 
 static inline bool video_is_awake(const struct uterm_video *video)
 {
-	return video->flags & VIDEO_AWAKE;
+	return (video->flags & VIDEO_AWAKE) && !(video->flags & VIDEO_NOT_SHOWN);
 }
 
 static inline bool video_need_hotplug(const struct uterm_video *video)

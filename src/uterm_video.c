@@ -655,6 +655,18 @@ void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
 }
 
 SHL_EXPORT
+void uterm_video_hide(struct uterm_video *video)
+{
+	video->flags |= VIDEO_NOT_SHOWN;
+}
+
+SHL_EXPORT
+void uterm_video_show(struct uterm_video *video)
+{
+	video->flags &= ~VIDEO_NOT_SHOWN;
+}
+
+SHL_EXPORT
 void uterm_video_sleep(struct uterm_video *video)
 {
 	if (!video || !video_is_awake(video))

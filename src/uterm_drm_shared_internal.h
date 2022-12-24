@@ -69,6 +69,8 @@ struct uterm_drm_display {
 	uint32_t conn_id;
 	int crtc_id;
 	drmModeCrtc *saved_crtc;
+	pthread_t thread_id;
+	int thread_flag;
 	void *data;
 };
 
@@ -93,6 +95,7 @@ static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
 typedef void (*uterm_drm_page_flip_t) (struct uterm_display *disp);
 
 struct uterm_drm_video {
+	char drm_dev_path[PATH_MAX + 1];
 	int fd;
 	struct ev_fd *efd;
 	uterm_drm_page_flip_t page_flip;

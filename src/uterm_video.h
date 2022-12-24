@@ -202,6 +202,8 @@ int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
 void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
 			       void *data);
 
+void uterm_video_hide(struct uterm_video *video);
+void uterm_video_show(struct uterm_video *video);
 void uterm_video_sleep(struct uterm_video *video);
 int uterm_video_wake_up(struct uterm_video *video);
 bool uterm_video_is_awake(struct uterm_video *video);

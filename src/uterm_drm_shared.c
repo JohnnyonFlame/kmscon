@@ -34,8 +34,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <sys/inotify.h>
+#include <fcntl.h>
 #include "shl_log.h"
 #include "shl_timer.h"
 #include "uterm_drm_shared_internal.h"
@@ -210,8 +213,54 @@ int uterm_drm_display_init(struct uterm_display *disp, void *data)
 	return 0;
 }
 
+#define MAX_EVENTS  16
+#define LEN_NAME    1024
+#define EVENT_SIZE  ( sizeof (struct inotify_event) )
+#define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME ))
+
+void *uterm_drm_watch_fd(void *data)
+{
+	char buffer[BUF_LEN];
+	struct uterm_display *disp = (struct uterm_display *)data;
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_video *video = disp->video;
+	struct uterm_drm_video *vdrm = video->data;
+	int wd, wfd, length, cur;
+
+	wfd = inotify_init1(IN_NONBLOCK);
+	wd = inotify_add_watch(wfd, vdrm->drm_dev_path, IN_OPEN | IN_CLOSE);
+	while (!ddrm->thread_flag) {
+		length = read(wfd, buffer, sizeof(buffer));
+		for (cur = 0; cur < length; cur++) {
+			struct inotify_event *event = (struct inotify_event *)&buffer[cur];
+			if (event->mask & IN_OPEN) {
+				log_info("DRM fd %s opened, hiding console.", event->name);
+				uterm_video_hide(video);
+			}
+			else if (event->mask & IN_CLOSE) {
+				log_info("DRM fd %s closed, showing console.", event->name);
+				uterm_video_show(video);
+			}
+
+			cur += EVENT_SIZE + event->len;
+		}
+
+		usleep(10000U);
+	}
+
+	inotify_rm_watch(wfd, wd);
+	close(wfd);
+
+	return NULL;
+}
+
 void uterm_drm_display_destroy(struct uterm_display *disp)
 {
+	struct uterm_drm_display *ddrm = disp->data;
+
+	ddrm->thread_flag = 1;
+	pthread_join(ddrm->thread_id, NULL);
+
 	free(disp->data);
 }
 
@@ -259,6 +308,7 @@ int uterm_drm_display_activate(struct uterm_display *disp, int fd)
 	if (ddrm->saved_crtc)
 		drmModeFreeCrtc(ddrm->saved_crtc);
 	ddrm->saved_crtc = drmModeGetCrtc(fd, ddrm->crtc_id);
+	pthread_create(&ddrm->thread_id, NULL, uterm_drm_watch_fd, (void*)disp);
 
 	return 0;
 }
@@ -510,6 +560,7 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 	vdrm->display_ops = display_ops;
 
 	vdrm->fd = open(node, O_RDWR | O_CLOEXEC | O_NONBLOCK);
+	strncpy(vdrm->drm_dev_path, node, PATH_MAX);
 	if (vdrm->fd < 0) {
 		log_err("cannot open drm device %s (%d): %m", node, errno);
 		ret = -EFAULT;
@@ -733,8 +784,8 @@ int uterm_drm_video_wake_up(struct uterm_video *video)
 	int ret;
 	struct uterm_drm_video *vdrm = video->data;
 
-	ret = drmSetMaster(vdrm->fd);
-	if (ret) {
+	//ret = drmSetMaster(vdrm->fd);
+	if (0) {
 		log_err("cannot set DRM-master");
 		return -EACCES;
 	}
